@@ -19,7 +19,10 @@ fn connect() -> io::Result<Conn> {
 
 #[cfg(windows)]
 fn connect() -> io::Result<Conn> {
-    std::fs::OpenOptions::new().read(true).write(true).open(IPC_PATH)
+    std::fs::OpenOptions::new()
+        .read(true)
+        .write(true)
+        .open(IPC_PATH)
 }
 
 // mpv needs a moment after launching before its socket exists. Try for ~5 seconds.

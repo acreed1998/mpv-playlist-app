@@ -2,13 +2,13 @@ use std::io::{self, BufRead, BufReader, Write};
 use std::sync::atomic::Ordering;
 use std::time::{Duration, Instant};
 
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use tauri::{AppHandle, Emitter, Manager};
 
 use super::ipc;
 use super::tracker::{Tracker, Update};
 use crate::playlist::{model::ResumeState, storage};
-use crate::{MpvState, PlaylistState};
+use crate::state::{MpvState, PlaylistState};
 
 const PROGRESS_EVERY: Duration = Duration::from_secs(1); // memory + UI updates
 const SAVE_EVERY: Duration = Duration::from_secs(5); // disk writes
@@ -75,21 +75,32 @@ fn observe(app: &AppHandle, generation: u64, session: Session) -> Result<(), Str
             Ok(_) => {}
         }
 
-        let Ok(msg) = serde_json::from_str::<Value>(&line) else { continue };
-        let Some(update) = tracker.handle(&msg) else { continue };
+        let Ok(msg) = serde_json::from_str::<Value>(&line) else {
+            continue;
+        };
+        let Some(update) = tracker.handle(&msg) else {
+            continue;
+        };
 
         match update {
             Update::Seek(secs) => {
                 send(reader.get_mut(), json!(["seek", secs, "absolute"]))
                     .map_err(|e| format!("could not talk to mpv: {e}"))?;
             }
-            Update::Progress { track_id, secs, urgent } => {
+            Update::Progress {
+                track_id,
+                secs,
+                urgent,
+            } => {
                 let due = progress_timer.ready();
                 if !urgent && !due {
                     continue;
                 }
                 let save_now = save_timer.ready() || urgent;
-                let resume = Some(ResumeState { track_id, position_secs: secs });
+                let resume = Some(ResumeState {
+                    track_id,
+                    position_secs: secs,
+                });
 
                 if !record(app, generation, resume.clone(), save_now) {
                     return Ok(()); // a newer session took over
@@ -115,7 +126,9 @@ fn record(app: &AppHandle, generation: u64, resume: Option<ResumeState>, save_no
     let playlist_state = app.state::<PlaylistState>();
     let mpv_state = app.state::<MpvState>();
 
-    let Ok(mut playlist) = playlist_state.playlist.lock() else { return false };
+    let Ok(mut playlist) = playlist_state.playlist.lock() else {
+        return false;
+    };
     // Checked while holding the lock, so shutdown can't slip in between check and write.
     if mpv_state.generation.load(Ordering::SeqCst) != generation {
         return false;
@@ -132,7 +145,9 @@ fn flush(app: &AppHandle, generation: u64) {
     let playlist_state = app.state::<PlaylistState>();
     let mpv_state = app.state::<MpvState>();
 
-    let Ok(playlist) = playlist_state.playlist.lock() else { return };
+    let Ok(playlist) = playlist_state.playlist.lock() else {
+        return;
+    };
     if mpv_state.generation.load(Ordering::SeqCst) != generation {
         return;
     }

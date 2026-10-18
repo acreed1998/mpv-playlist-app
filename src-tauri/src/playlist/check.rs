@@ -27,8 +27,7 @@ mod tests {
 
     #[test]
     fn flags_missing_files_and_replaced_folders_but_not_real_files() {
-        let root = std::env::temp_dir()
-            .join(format!("mpv-check-test-{}", uuid::Uuid::new_v4()));
+        let root = std::env::temp_dir().join(format!("mpv-check-test-{}", uuid::Uuid::new_v4()));
         fs::create_dir_all(root.join("a_folder")).unwrap();
         fs::write(root.join("real.mp4"), b"").unwrap();
 

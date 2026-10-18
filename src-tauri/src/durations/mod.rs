@@ -42,7 +42,9 @@ where
             continue; // the same file listed twice is probed once
         }
         // No fingerprint means we can't stat it (missing, not a file): unknown.
-        let Some(fingerprint) = Fingerprint::of(path) else { continue };
+        let Some(fingerprint) = Fingerprint::of(path) else {
+            continue;
+        };
 
         match cache.lookup(path, fingerprint) {
             Some(Some(secs)) => {
@@ -56,7 +58,10 @@ where
     let total = todo.len();
     on_progress(0, total);
     if total == 0 {
-        return Ok(Outcome { durations, cancelled: false });
+        return Ok(Outcome {
+            durations,
+            cancelled: false,
+        });
     }
 
     // Phase 2: probe the rest on a few threads.
@@ -70,15 +75,17 @@ where
         for _ in 0..WORKERS.min(total) {
             let tx = tx.clone();
             let (todo, next, abort, probe) = (&todo, &next, &abort, &probe);
-            scope.spawn(move || loop {
-                if cancel.load(Ordering::SeqCst) || abort.load(Ordering::SeqCst) {
-                    break;
-                }
-                // fetch_add hands each worker a different index.
-                let i = next.fetch_add(1, Ordering::SeqCst);
-                let Some((path, _)) = todo.get(i) else { break };
-                if tx.send((i, probe(path.as_str()))).is_err() {
-                    break;
+            scope.spawn(move || {
+                loop {
+                    if cancel.load(Ordering::SeqCst) || abort.load(Ordering::SeqCst) {
+                        break;
+                    }
+                    // fetch_add hands each worker a different index.
+                    let i = next.fetch_add(1, Ordering::SeqCst);
+                    let Some((path, _)) = todo.get(i) else { break };
+                    if tx.send((i, probe(path.as_str()))).is_err() {
+                        break;
+                    }
                 }
             });
         }
@@ -109,7 +116,10 @@ where
         return Err(message);
     }
     // The only way to stop early without a failure is the cancel flag.
-    Ok(Outcome { durations, cancelled: done < total })
+    Ok(Outcome {
+        durations,
+        cancelled: done < total,
+    })
 }
 
 #[cfg(test)]
@@ -119,8 +129,7 @@ mod tests {
     use std::path::PathBuf;
 
     fn temp_files(names: &[&str]) -> (PathBuf, Vec<String>) {
-        let root = std::env::temp_dir()
-            .join(format!("mpv-dur-test-{}", uuid::Uuid::new_v4()));
+        let root = std::env::temp_dir().join(format!("mpv-dur-test-{}", uuid::Uuid::new_v4()));
         fs::create_dir_all(&root).unwrap();
         let paths = names
             .iter()
@@ -145,8 +154,10 @@ mod tests {
         };
 
         let mut seen = Vec::new();
-        let first =
-            ensure_durations(&paths, &mut cache, &cancel, &probe, |d, t| seen.push((d, t))).unwrap();
+        let first = ensure_durations(&paths, &mut cache, &cancel, &probe, |d, t| {
+            seen.push((d, t))
+        })
+        .unwrap();
         assert_eq!(first.durations.len(), 3);
         assert_eq!(calls.load(Ordering::SeqCst), 3);
         assert_eq!(seen.first(), Some(&(0, 3)));
@@ -187,7 +198,11 @@ mod tests {
         let calls = AtomicUsize::new(0);
         let probe = |path: &str| {
             calls.fetch_add(1, Ordering::SeqCst);
-            Ok(if path.contains("bad") { None } else { Some(5.0) })
+            Ok(if path.contains("bad") {
+                None
+            } else {
+                Some(5.0)
+            })
         };
 
         let outcome = ensure_durations(&paths, &mut cache, &cancel, &probe, |_, _| {}).unwrap();
@@ -203,7 +218,11 @@ mod tests {
     #[test]
     fn duplicates_are_probed_once_and_missing_files_are_skipped() {
         let (root, paths) = temp_files(&["a.mp4"]);
-        let listed = vec![paths[0].clone(), paths[0].clone(), "/no/such/file.mp4".to_string()];
+        let listed = vec![
+            paths[0].clone(),
+            paths[0].clone(),
+            "/no/such/file.mp4".to_string(),
+        ];
         let mut cache = Cache::default();
         let cancel = AtomicBool::new(false);
         let calls = AtomicUsize::new(0);

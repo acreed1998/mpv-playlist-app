@@ -5,7 +5,11 @@ use serde_json::Value;
 pub enum Update {
     // Record "we're on this track, this many seconds in".
     // `urgent` means a track change: save to disk now, don't wait for the timer.
-    Progress { track_id: String, secs: f64, urgent: bool },
+    Progress {
+        track_id: String,
+        secs: f64,
+        urgent: bool,
+    },
     // Tell mpv to jump to this position (resuming mid-track).
     Seek(f64),
     // The last track ended naturally: the playlist is done.
@@ -13,10 +17,10 @@ pub enum Update {
 }
 
 pub struct Tracker {
-    track_ids: Vec<String>,   // the queue as launched, so index N means track_ids[N]
-    start_index: usize,       // where mpv was told to begin
+    track_ids: Vec<String>, // the queue as launched, so index N means track_ids[N]
+    start_index: usize,     // where mpv was told to begin
     pending_seek: Option<f64>, // a resume position we still need to apply
-    index: Option<usize>,     // the entry mpv says is playing right now
+    index: Option<usize>,   // the entry mpv says is playing right now
     finished: bool,
 }
 
@@ -78,12 +82,17 @@ impl Tracker {
         }
 
         let track_id = self.track_ids.get(index)?.clone();
-        Some(Update::Progress { track_id, secs, urgent: false })
+        Some(Update::Progress {
+            track_id,
+            secs,
+            urgent: false,
+        })
     }
 
     fn on_end(&mut self, reason: Option<&str>) -> Option<Update> {
         let ended_by_itself = matches!(reason, Some("eof") | Some("error"));
-        let on_last_track = self.index.is_some() && self.index == self.track_ids.len().checked_sub(1);
+        let on_last_track =
+            self.index.is_some() && self.index == self.track_ids.len().checked_sub(1);
 
         if ended_by_itself && on_last_track {
             self.finished = true;
@@ -112,7 +121,11 @@ mod tests {
         json!({"event": "end-file", "reason": reason})
     }
     fn progress(id: &str, secs: f64, urgent: bool) -> Option<Update> {
-        Some(Update::Progress { track_id: id.to_string(), secs, urgent })
+        Some(Update::Progress {
+            track_id: id.to_string(),
+            secs,
+            urgent,
+        })
     }
 
     #[test]

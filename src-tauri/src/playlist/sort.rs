@@ -4,9 +4,9 @@ use std::fs;
 use std::path::Path;
 use std::time::SystemTime;
 
+use rand::SeedableRng;
 use rand::rngs::StdRng;
 use rand::seq::SliceRandom;
-use rand::SeedableRng;
 
 use super::model::{Direction, Playlist, SortKey, Track};
 
@@ -55,7 +55,9 @@ pub fn read_times(paths: &[String], key: SortKey) -> HashMap<String, SystemTime>
         return times;
     }
     for path in paths {
-        let Ok(meta) = fs::metadata(path) else { continue };
+        let Ok(meta) = fs::metadata(path) else {
+            continue;
+        };
         if let Ok(modified) = meta.modified() {
             times.insert(path.clone(), modified);
         }
@@ -95,7 +97,7 @@ pub fn sorted_order(
         SortKey::Modified => items.sort_by(|a, b| {
             let primary = match (times.get(&a.path), times.get(&b.path)) {
                 (Some(x), Some(y)) => directed(x.cmp(y), direction),
-                (Some(_), None) => Ordering::Less,    // known dates come first
+                (Some(_), None) => Ordering::Less, // known dates come first
                 (None, Some(_)) => Ordering::Greater, // unknown dates come last
                 (None, None) => Ordering::Equal,
             };
@@ -249,7 +251,10 @@ mod tests {
 
         // Descending flips the dates, but the tied pair stays in A->Z order.
         let desc = sorted_order(&t, SortKey::Modified, Direction::Descending, 1, &times);
-        assert_eq!(in_order(&t, &desc), vec!["/a/y.mp4", "/b/x.mp4", "/a/w.mp4"]);
+        assert_eq!(
+            in_order(&t, &desc),
+            vec!["/a/y.mp4", "/b/x.mp4", "/a/w.mp4"]
+        );
     }
 
     #[test]
@@ -308,7 +313,11 @@ mod tests {
 
         for seed in 0..20 {
             let order = sorted_order(
-                &t, SortKey::ShuffleFolders, Direction::Ascending, seed, &HashMap::new(),
+                &t,
+                SortKey::ShuffleFolders,
+                Direction::Ascending,
+                seed,
+                &HashMap::new(),
             );
             let result = in_order(&t, &order);
             assert_eq!(result.len(), 6);
@@ -329,7 +338,10 @@ mod tests {
         p.add_files(vec!["/v/b.mp4".to_string()]);
         reapply_current(&mut p, &HashMap::new(), &HashMap::new());
 
-        assert_eq!(in_order(&p.tracks, &p.order), vec!["/v/a.mp4", "/v/b.mp4", "/v/c.mp4"]);
+        assert_eq!(
+            in_order(&p.tracks, &p.order),
+            vec!["/v/a.mp4", "/v/b.mp4", "/v/c.mp4"]
+        );
     }
 
     #[test]

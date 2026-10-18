@@ -3,9 +3,9 @@ use std::collections::HashMap;
 use super::model::Playlist;
 
 pub struct Queue {
-    pub paths: Vec<String>, // every track, in play order
+    pub paths: Vec<String>,     // every track, in play order
     pub track_ids: Vec<String>, // the same tracks' IDs, in the same order
-    pub start_index: usize, // which entry mpv should begin on
+    pub start_index: usize,     // which entry mpv should begin on
 }
 
 // Turn the playlist's ID order into a list of paths, and find the start position.
@@ -41,7 +41,10 @@ pub fn build_queue(playlist: &Playlist, start_track_id: Option<&str>) -> Result<
     let track_ids: Vec<String> = entries.iter().map(|(id, _)| id.to_string()).collect();
 
     Ok(Queue {
-        paths: entries.into_iter().map(|(_, path)| path.to_string()).collect(),
+        paths: entries
+            .into_iter()
+            .map(|(_, path)| path.to_string())
+            .collect(),
         track_ids,
         start_index,
     })
@@ -68,7 +71,10 @@ pub struct StartPoint {
 //  3. Otherwise start from the top.
 pub fn resolve_start(playlist: &Playlist, requested: Option<&str>, use_resume: bool) -> StartPoint {
     if let Some(id) = requested {
-        return StartPoint { track_id: Some(id.to_string()), seconds: 0.0 };
+        return StartPoint {
+            track_id: Some(id.to_string()),
+            seconds: 0.0,
+        };
     }
     if use_resume {
         if let Some(saved) = &playlist.resume {
@@ -80,14 +86,16 @@ pub fn resolve_start(playlist: &Playlist, requested: Option<&str>, use_resume: b
             }
         }
     }
-    StartPoint { track_id: None, seconds: 0.0 }
+    StartPoint {
+        track_id: None,
+        seconds: 0.0,
+    }
 }
-
 
 #[cfg(test)]
 mod tests {
-    use crate::playlist::model::ResumeState;
     use super::*;
+    use crate::playlist::model::ResumeState;
 
     fn playlist_abc() -> Playlist {
         let mut p = Playlist::new("t", "Test");
@@ -141,7 +149,10 @@ mod tests {
     #[test]
     fn explicit_track_wins_over_saved_position() {
         let mut p = playlist_abc();
-        p.resume = Some(ResumeState { track_id: p.order[2].clone(), position_secs: 50.0 });
+        p.resume = Some(ResumeState {
+            track_id: p.order[2].clone(),
+            position_secs: 50.0,
+        });
         let b = p.order[1].clone();
 
         let start = resolve_start(&p, Some(b.as_str()), true);
@@ -153,7 +164,10 @@ mod tests {
     fn resume_uses_the_saved_track_and_position_only_when_asked() {
         let mut p = playlist_abc();
         let c = p.order[2].clone();
-        p.resume = Some(ResumeState { track_id: c.clone(), position_secs: 50.0 });
+        p.resume = Some(ResumeState {
+            track_id: c.clone(),
+            position_secs: 50.0,
+        });
 
         let resumed = resolve_start(&p, None, true);
         assert_eq!(resumed.track_id, Some(c));
@@ -167,9 +181,12 @@ mod tests {
     #[test]
     fn resume_pointing_at_a_missing_track_falls_back_to_the_top() {
         let mut p = playlist_abc();
-        p.resume = Some(ResumeState { track_id: "gone".into(), position_secs: 50.0 });
+        p.resume = Some(ResumeState {
+            track_id: "gone".into(),
+            position_secs: 50.0,
+        });
 
         let start = resolve_start(&p, None, true);
         assert_eq!(start.track_id, None);
-    }    
+    }
 }

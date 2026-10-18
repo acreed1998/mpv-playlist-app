@@ -26,7 +26,10 @@ impl Fingerprint {
             .ok()
             .and_then(|time| time.duration_since(UNIX_EPOCH).ok())
             .map_or(0, |since_epoch| since_epoch.as_millis() as u64);
-        Some(Fingerprint { size: meta.len(), modified_ms })
+        Some(Fingerprint {
+            size: meta.len(),
+            modified_ms,
+        })
     }
 }
 
@@ -73,7 +76,13 @@ impl Cache {
     }
 
     pub fn insert(&mut self, path: String, fingerprint: Fingerprint, duration: Option<f64>) {
-        self.entries.insert(path, Entry { fingerprint, duration });
+        self.entries.insert(
+            path,
+            Entry {
+                fingerprint,
+                duration,
+            },
+        );
     }
 }
 
@@ -88,7 +97,10 @@ mod tests {
     #[test]
     fn survives_a_save_and_load_and_notices_changed_files() {
         let dir = temp_dir();
-        let fp = Fingerprint { size: 10, modified_ms: 5 };
+        let fp = Fingerprint {
+            size: 10,
+            modified_ms: 5,
+        };
 
         let mut cache = Cache::default();
         cache.insert("/v/a.mp4".into(), fp, Some(61.5));
@@ -109,7 +121,10 @@ mod tests {
     #[test]
     fn missing_or_corrupt_cache_loads_as_empty() {
         let dir = temp_dir();
-        let fp = Fingerprint { size: 1, modified_ms: 1 };
+        let fp = Fingerprint {
+            size: 1,
+            modified_ms: 1,
+        };
         assert_eq!(Cache::load(&dir).lookup("/v/a.mp4", fp), None); // no file at all
 
         fs::create_dir_all(&dir).unwrap();

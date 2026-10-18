@@ -19,10 +19,14 @@ pub fn parse_duration(json_text: &str) -> Option<f64> {
 pub fn probe_file(path: &str) -> Result<Option<f64>, String> {
     let result = quiet_command("ffprobe")
         .args([
-            "-v", "error",
-            "-show_entries", "format=duration",
-            "-of", "json",
-            "-i", path,
+            "-v",
+            "error",
+            "-show_entries",
+            "format=duration",
+            "-of",
+            "json",
+            "-i",
+            path,
         ])
         .output();
 
@@ -44,7 +48,10 @@ mod tests {
 
     #[test]
     fn reads_the_duration_string() {
-        assert_eq!(parse_duration(r#"{"format":{"duration":"125.480000"}}"#), Some(125.48));
+        assert_eq!(
+            parse_duration(r#"{"format":{"duration":"125.480000"}}"#),
+            Some(125.48)
+        );
     }
 
     #[test]
