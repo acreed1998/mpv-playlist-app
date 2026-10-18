@@ -5,6 +5,7 @@ import type {
   AddResult,
   Direction,
   SortKey,
+  Settings,
 } from "./types";
 
 export const checkDependencies = () =>
@@ -43,3 +44,8 @@ export const sortByLength = (direction: Direction) =>
   invoke<Playlist | null>("sort_by_length", { direction });
 
 export const cancelProbe = () => invoke<void>("cancel_probe");
+
+export const getSettings = () => invoke<Settings>("get_settings");
+
+export const setMpvPath = (path: string | null) =>
+  invoke<Settings>("set_mpv_path", { path });

@@ -10,6 +10,7 @@ import type {
   ResumeState,
   SortKey,
   Track,
+  Settings,
 } from "./lib/types";
 import { describeAdd } from "./lib/format";
 import { useMissingFiles } from "./hooks/useMissingFiles";
@@ -18,6 +19,7 @@ import { DependencyBanner } from "./components/DependencyBanner";
 import { PlaybackControls } from "./components/PlaybackControls";
 import { SortControls } from "./components/SortControls";
 import { TrackList } from "./components/TrackList";
+import { SettingsPanel } from "./components/SettingsPanel";
 
 function App() {
   const [deps, setDeps] = useState<DependencyReport | null>(null);
@@ -27,6 +29,10 @@ function App() {
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [probe, setProbe] = useState<ProbeProgress | null>(null);
+  const [settings, setSettings] = useState<Settings | null>(null);
+  const [trackingWarning, setTrackingWarning] = useState<string | null>(null);
+
+  useTauriEvent<string | null>("tracking-status", setTrackingWarning);
 
   const { missingIds, recheck } = useMissingFiles(
     playlist?.tracks.length ?? 0,
@@ -72,6 +78,10 @@ function App() {
       .getVideoExtensions()
       .then(setExtensions)
       .catch((err) => setError(String(err)));
+    api
+      .getSettings()
+      .then(setSettings)
+      .catch((err) => setError(String(err)));
   }, [runDependencyCheck]);
 
   async function addSelection(paths: string[]) {
@@ -95,6 +105,18 @@ function App() {
       const selected = await open({ multiple: true, directory: true });
       if (selected) await addSelection(selected);
     });
+
+  async function browseForMpv(): Promise<string | null> {
+    const selected = await open({ multiple: false, directory: false });
+    return typeof selected === "string" ? selected : null;
+  }
+
+  function saveMpvPath(path: string | null) {
+    run(async () => {
+      setSettings(await api.setMpvPath(path));
+      runDependencyCheck(); // refresh the banner and the Play buttons right away
+    });
+  }
 
   async function handleSort(key: SortKey, direction: Direction) {
     if (!playlist) return;
@@ -210,6 +232,28 @@ function App() {
     <main style={{ padding: 24 }}>
       {deps && (
         <DependencyBanner report={deps} onRecheck={runDependencyCheck} />
+      )}
+
+      {trackingWarning && (
+        <div
+          style={{
+            border: "1px solid darkorange",
+            padding: 12,
+            marginBottom: 16,
+          }}
+        >
+          <strong>Progress isn't being tracked.</strong> {trackingWarning}{" "}
+          <button onClick={() => setTrackingWarning(null)}>Dismiss</button>
+        </div>
+      )}
+
+      {settings && (
+        <SettingsPanel
+          mpvPath={settings.mpvPath}
+          busy={busy}
+          onSave={saveMpvPath}
+          onBrowse={browseForMpv}
+        />
       )}
 
       {playlist && (

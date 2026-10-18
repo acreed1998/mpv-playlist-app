@@ -6,6 +6,7 @@ use tauri::Manager;
 
 use super::ipc;
 use crate::state::{MpvState, PlaylistState};
+use crate::dependencies::quiet_command;
 
 // Kill and clean up the process in the slot, if there is one.
 pub fn stop_existing(slot: &mut Option<Child>) {
@@ -17,12 +18,12 @@ pub fn stop_existing(slot: &mut Option<Child>) {
 
 // Launch mpv on a queue file, starting at the given entry.
 // Everything about HOW mpv is started lives here, so there is one place to change.
-pub fn spawn_mpv(queue_path: &Path, start_index: usize) -> Result<Child, String> {
+pub fn spawn_mpv(program: &str, queue_path: &Path, start_index: usize) -> Result<Child, String> {
     // A killed mpv can't delete its socket; remove it so we only ever
     // connect to the NEW mpv.
     ipc::remove_stale_socket();
 
-    Command::new("mpv")
+    quiet_command(program)
         .arg(format!("--input-ipc-server={}", ipc::IPC_PATH))
         .arg(format!("--playlist-start={start_index}"))
         .arg(format!("--playlist={}", queue_path.display()))
@@ -30,7 +31,7 @@ pub fn spawn_mpv(queue_path: &Path, start_index: usize) -> Result<Child, String>
         .stdout(Stdio::null())
         .stderr(Stdio::inherit())
         .spawn()
-        .map_err(|e| format!("Failed to start mpv: {e}"))
+        .map_err(|e| format!("Failed to start {program}: {e}"))
 }
 
 // Stop mpv for good (or before replacing it), saving the position first.

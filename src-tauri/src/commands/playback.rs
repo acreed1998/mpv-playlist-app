@@ -1,11 +1,11 @@
 use std::fs;
 use std::sync::atomic::Ordering;
 
-use tauri::State;
+use tauri::{Emitter, State};
 
 use crate::mpv::{observer, process};
 use crate::playlist::queue;
-use crate::state::{MpvState, PlaylistState};
+use crate::state::{MpvState, PlaylistState, SettingsState};
 
 #[tauri::command(async)]
 pub fn play_playlist(
@@ -14,6 +14,7 @@ pub fn play_playlist(
     app: tauri::AppHandle,
     playlist_state: State<'_, PlaylistState>,
     mpv_state: State<'_, MpvState>,
+    settings_state: State<'_, SettingsState>,
 ) -> Result<(), String> {
     // 1. Snapshot the queue and decide where to start. The lock ends at the closing brace.
     let (queue, start_secs) = {
@@ -31,15 +32,17 @@ pub fn play_playlist(
     // 3. Stop the previous mpv (saving its position) and retire its observer.
     process::halt_mpv(&mpv_state, &playlist_state);
 
-    // 4. Start the new mpv.
+    // 4. Start the new mpv, using the configured program.
+    let program = settings_state.mpv_program();
     let mut slot = mpv_state
         .child
         .lock()
         .map_err(|_| "mpv state lock was poisoned".to_string())?;
     process::stop_existing(&mut slot); // normally already empty
-    *slot = Some(process::spawn_mpv(&queue_path, queue.start_index)?);
+    *slot = Some(process::spawn_mpv(&program, &queue_path, queue.start_index)?);
 
-    // 5. Start watching it. This launch gets its own generation number.
+    // 5. Clear any old tracking warning, then start watching the new session.
+    let _ = app.emit("tracking-status", None::<String>);
     let generation = mpv_state.generation.fetch_add(1, Ordering::SeqCst) + 1;
     observer::spawn(
         app,

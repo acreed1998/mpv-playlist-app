@@ -3,7 +3,7 @@ import type { DependencyReport, ToolStatus } from "../lib/types";
 // What each tool is for, and how to get it. Kept as data so adding a tool later is one line.
 const TOOL_INFO: Record<string, { role: string; install: string }> = {
   mpv: {
-    role: "mpv is required to play videos.",
+    role: "mpv is required to play videos. If it's installed somewhere unusual, set its location under Settings.",
     install:
       "Ubuntu/Debian: sudo apt install mpv · macOS: brew install mpv · Windows: scoop install mpv",
   },

@@ -54,3 +54,7 @@ export interface ProbeProgress {
   done: number;
   total: number;
 }
+
+export interface Settings {
+  mpvPath: string | null;
+}

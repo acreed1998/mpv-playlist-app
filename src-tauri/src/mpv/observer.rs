@@ -13,6 +13,11 @@ use crate::state::{MpvState, PlaylistState};
 const PROGRESS_EVERY: Duration = Duration::from_secs(1); // memory + UI updates
 const SAVE_EVERY: Duration = Duration::from_secs(5); // disk writes
 
+const CONNECT_FAILED: &str = "Couldn't connect to mpv's control socket, so your position isn't \
+being saved and Resume won't work for this session. If mpv was installed as a Snap or Flatpak, \
+its sandbox can hide the socket: install the regular package instead (for example \
+`sudo apt install mpv`), or choose a different mpv in Settings.";
+
 // Everything the observer needs to know about the launch it's watching.
 pub struct Session {
     pub track_ids: Vec<String>,
@@ -54,7 +59,15 @@ fn send(conn: &mut ipc::Conn, command: Value) -> io::Result<()> {
 }
 
 fn observe(app: &AppHandle, generation: u64, session: Session) -> Result<(), String> {
-    let conn = ipc::connect_with_retry().map_err(|e| format!("could not connect to mpv: {e}"))?;
+    let conn = match ipc::connect_with_retry() {
+        Ok(conn) => conn,
+        Err(e) => {
+            eprintln!("mpv observer could not connect: {e}");
+            report_tracking_failure(app, generation, CONNECT_FAILED);
+            return Ok(());
+        }
+    };
+
     let mut reader = BufReader::new(conn);
 
     // Ask mpv to push us an event whenever these change.
@@ -152,4 +165,13 @@ fn flush(app: &AppHandle, generation: u64) {
         return;
     }
     let _ = storage::save(&playlist_state.dir, &playlist);
+}
+
+// Tell the UI that tracking isn't working, unless this observer is already out of date.
+fn report_tracking_failure(app: &AppHandle, generation: u64, message: &str) {
+    let mpv_state = app.state::<MpvState>();
+    if mpv_state.generation.load(Ordering::SeqCst) != generation {
+        return; // the user stopped or restarted mpv; this failure no longer matters
+    }
+    let _ = app.emit("tracking-status", Some(message));
 }

@@ -4,6 +4,7 @@ mod durations;
 mod mpv;
 mod playlist;
 mod state;
+mod settings;
 
 use std::sync::Mutex;
 use std::sync::atomic::AtomicBool;
@@ -12,7 +13,7 @@ use tauri::Manager;
 
 use durations::Cache;
 use playlist::storage;
-use state::{DEFAULT_PLAYLIST_ID, MpvState, PlaylistState, ProbeState};
+use state::{MpvState, PlaylistState, ProbeState, SettingsState, DEFAULT_PLAYLIST_ID};
 
 // Runs once, before the window opens: load saved data and register shared state.
 fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
@@ -23,6 +24,10 @@ fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
         cache: Mutex::new(Cache::load(&dir)),
         dir: dir.clone(),
         cancel: AtomicBool::new(false),
+    });
+    app.manage(SettingsState {
+        settings: Mutex::new(settings::load(&dir)),
+        dir: dir.clone(),
     });
     app.manage(PlaylistState {
         dir,
@@ -52,6 +57,8 @@ pub fn run() {
             commands::sorting::sort_playlist,
             commands::sorting::sort_by_length,
             commands::sorting::cancel_probe,
+            commands::settings::get_settings,
+            commands::settings::set_mpv_path,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application");
