@@ -8,15 +8,20 @@ pub const VIDEO_EXTENSIONS: &[&str] = &[
     "3gp", "ogv", "divx", "asf", "rmvb",
 ];
 
+// The built-in list as owned strings, for use as the default setting.
+pub fn default_extensions() -> Vec<String> {
+    VIDEO_EXTENSIONS.iter().map(|e| e.to_string()).collect()
+}
+
 pub struct ScanResult {
     pub files: Vec<String>, // canonical, absolute paths
     pub unreadable: usize,  // things we had to skip because of an error
 }
 
-fn is_video(path: &Path) -> bool {
+fn is_video(path: &Path, extensions: &[String]) -> bool {
     path.extension()
         .and_then(|ext| ext.to_str())
-        .is_some_and(|ext| VIDEO_EXTENSIONS.contains(&ext.to_ascii_lowercase().as_str()))
+        .is_some_and(|ext| extensions.iter().any(|allowed| allowed.eq_ignore_ascii_case(ext)))
 }
 
 // Names starting with "." are hidden on Linux and macOS.
@@ -38,8 +43,8 @@ fn push_canonical(path: &Path, result: &mut ScanResult) {
     }
 }
 
-pub fn collect_videos(inputs: &[String]) -> ScanResult {
-    let mut result = ScanResult {
+pub fn collect_videos(inputs: &[String], extensions: &[String]) -> ScanResult {
+        let mut result = ScanResult {
         files: Vec::new(),
         unreadable: 0,
     };
@@ -58,7 +63,7 @@ pub fn collect_videos(inputs: &[String]) -> ScanResult {
                 match entry {
                     Ok(entry) => {
                         // path().is_file() follows symlinks; file_type().is_file() doesn't.
-                        if entry.path().is_file() && is_video(entry.path()) {
+                        if entry.path().is_file() && is_video(entry.path(), extensions) {
                             push_canonical(entry.path(), &mut result);
                         }
                     }
@@ -116,7 +121,7 @@ mod tests {
     #[test]
     fn folder_scan_filters_extensions_and_skips_hidden() {
         let root = make_test_dir();
-        let result = collect_videos(&[root.to_str().unwrap().to_string()]);
+        let result = collect_videos(&[root.to_str().unwrap().to_string()], &default_extensions());
 
         // Included: a.mp4, B.MKV (case-insensitive), sub/c.avi (recursive).
         // Excluded: notes.txt (extension), .hidden.mp4 and .cache/ (hidden).
@@ -130,7 +135,7 @@ mod tests {
     fn explicitly_chosen_file_ignores_extension_filter() {
         let root = make_test_dir();
         let notes = root.join("notes.txt");
-        let result = collect_videos(&[notes.to_str().unwrap().to_string()]);
+        let result = collect_videos(&[notes.to_str().unwrap().to_string()], &default_extensions());
 
         assert_eq!(file_names(&result.files), vec!["notes.txt"]);
 
@@ -139,8 +144,21 @@ mod tests {
 
     #[test]
     fn missing_path_is_counted_as_unreadable() {
-        let result = collect_videos(&["/definitely/not/a/real/path".to_string()]);
+        let result = collect_videos(&["/definitely/not/a/real/path".to_string()], &default_extensions());
         assert!(result.files.is_empty());
         assert_eq!(result.unreadable, 1);
+    }
+
+    #[test]
+    fn custom_extensions_replace_the_defaults_case_insensitively() {
+        let root = make_test_dir();
+        // "TXT" is uppercase on purpose: matching ignores case on both sides.
+        let custom = vec!["TXT".to_string(), "avi".to_string()];
+        let result = collect_videos(&[root.to_str().unwrap().to_string()], &custom);
+
+        // notes.txt and sub/c.avi match. a.mp4 and B.MKV no longer do.
+        assert_eq!(file_names(&result.files), vec!["c.avi", "notes.txt"]);
+
+        let _ = fs::remove_dir_all(&root);
     }
 }

@@ -59,6 +59,7 @@ pub fn run() {
             commands::sorting::cancel_probe,
             commands::settings::get_settings,
             commands::settings::set_mpv_path,
+            commands::settings::set_video_extensions,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application");

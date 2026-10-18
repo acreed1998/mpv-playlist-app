@@ -3,6 +3,7 @@ use std::io;
 use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
+use crate::playlist::scan;
 
 const DEFAULT_MPV: &str = "mpv";
 
@@ -12,6 +13,7 @@ const DEFAULT_MPV: &str = "mpv";
 #[serde(rename_all = "camelCase", default)]
 pub struct Settings {
     pub mpv_path: Option<String>, // None = look for "mpv" on the PATH
+    pub video_extensions: Option<Vec<String>>, // None = the built-in list
 }
 
 impl Settings {
@@ -20,6 +22,13 @@ impl Settings {
         self.mpv_path
             .clone()
             .unwrap_or_else(|| DEFAULT_MPV.to_string())
+    }
+
+    // The extensions in effect right now. The only place that default is decided.
+    pub fn extensions(&self) -> Vec<String> {
+        self.video_extensions
+            .clone()
+            .unwrap_or_else(scan::default_extensions)
     }
 }
 
@@ -54,6 +63,40 @@ pub fn normalize_path(raw: &str) -> Option<String> {
     (!cleaned.is_empty()).then(|| cleaned.to_string())
 }
 
+// Turn what the user typed ("MP4, .mkv  *.avi") into a clean list.
+// Entries may be separated by commas, semicolons, or whitespace.
+// An empty result is not an error; the caller treats it as "use the defaults".
+pub fn parse_extensions(raw: &str) -> Result<Vec<String>, String> {
+    let mut result: Vec<String> = Vec::new();
+    let mut invalid: Vec<String> = Vec::new();
+
+    let tokens = raw
+        .split(|c: char| c == ',' || c == ';' || c.is_whitespace())
+        .filter(|token| !token.is_empty());
+
+    for token in tokens {
+        // Accept ".mp4" and "*.mp4" as well as "mp4".
+        let ext = token
+            .trim_start_matches(|c| c == '*' || c == '.')
+            .to_ascii_lowercase();
+
+        if ext.is_empty() || !ext.chars().all(|c| c.is_ascii_alphanumeric()) {
+            invalid.push(token.to_string());
+        } else if !result.contains(&ext) {
+            result.push(ext); // keeps the user's order, skips repeats
+        }
+    }
+
+    if invalid.is_empty() {
+        Ok(result)
+    } else {
+        Err(format!(
+            "These aren't valid video extensions: {}. Use letters and digits only, separated by commas (for example: mkv).",
+            invalid.join(", ")
+        ))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -65,7 +108,7 @@ mod tests {
     #[test]
     fn survives_a_save_and_load() {
         let dir = temp_dir();
-        let settings = Settings { mpv_path: Some("/opt/mpv/bin/mpv".into()) };
+        let settings = Settings { mpv_path: Some("/opt/mpv/bin/mpv".into()), ..Settings::default() };
 
         save(&dir, &settings).unwrap();
         assert_eq!(load(&dir), settings);
@@ -91,7 +134,7 @@ mod tests {
     #[test]
     fn program_defaults_to_mpv_on_the_path() {
         assert_eq!(Settings::default().mpv_program(), "mpv");
-        let custom = Settings { mpv_path: Some("/x/mpv".into()) };
+        let custom = Settings { mpv_path: Some("/x/mpv".into()), ..Settings::default() };
         assert_eq!(custom.mpv_program(), "/x/mpv");
     }
 
@@ -104,5 +147,29 @@ mod tests {
         );
         assert_eq!(normalize_path("   "), None);
         assert_eq!(normalize_path(r#""""#), None);
+    }
+
+    #[test]
+    fn typed_extensions_are_cleaned_and_deduplicated() {
+        assert_eq!(
+            parse_extensions("MP4, .mkv  *.avi;webm,mp4").unwrap(),
+            vec!["mp4", "mkv", "avi", "webm"]
+        );
+        assert!(parse_extensions("  ,, ").unwrap().is_empty());
+    }
+
+    #[test]
+    fn invalid_extensions_are_reported_together() {
+        let err = parse_extensions("mp4, m$v, tar.gz, .").unwrap_err();
+        assert!(err.contains("m$v"));
+        assert!(err.contains("tar.gz"));
+    }
+
+    #[test]
+    fn extensions_fall_back_to_the_defaults() {
+        assert!(Settings::default().extensions().contains(&"mkv".to_string()));
+
+        let custom = Settings { video_extensions: Some(vec!["ts".into()]), ..Settings::default() };
+        assert_eq!(custom.extensions(), vec!["ts"]);
     }
 }

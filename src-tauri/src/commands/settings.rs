@@ -17,3 +17,19 @@ pub fn set_mpv_path(
     let cleaned = path.as_deref().and_then(settings::normalize_path);
     state.set_mpv_path(cleaned)
 }
+
+#[tauri::command]
+pub fn set_video_extensions(
+    text: Option<String>,
+    state: State<'_, SettingsState>,
+) -> Result<Settings, String> {
+    // Nothing typed (or only separators) means "use the built-in list".
+    let list = match text.as_deref().map(str::trim) {
+        None | Some("") => None,
+        Some(raw) => {
+            let parsed = settings::parse_extensions(raw)?;
+            (!parsed.is_empty()).then_some(parsed)
+        }
+    };
+    state.set_video_extensions(list)
+}

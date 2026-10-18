@@ -2,19 +2,40 @@ import { useEffect, useState } from "react";
 
 interface Props {
   mpvPath: string | null; // the saved value
+  extensions: string[]; // the list in effect right now (custom or built-in)
+  customExtensions: boolean; // true if the user has saved their own list
   busy: boolean;
-  onSave: (path: string | null) => void;
+  onSaveMpvPath: (path: string | null) => void;
   onBrowse: () => Promise<string | null>;
+  onSaveExtensions: (text: string | null) => void;
 }
 
-export function SettingsPanel({ mpvPath, busy, onSave, onBrowse }: Props) {
-  // What's typed in the box, which may differ from what's saved.
-  const [draft, setDraft] = useState(mpvPath ?? "");
+export function SettingsPanel({
+  mpvPath,
+  extensions,
+  customExtensions,
+  busy,
+  onSaveMpvPath,
+  onBrowse,
+  onSaveExtensions,
+}: Props) {
+  // What's typed in each box, which may differ from what's saved.
+  const [mpvDraft, setMpvDraft] = useState(mpvPath ?? "");
+  const [extDraft, setExtDraft] = useState("");
 
-  // If the saved value changes (after a save), reset the box to match it.
-  useEffect(() => setDraft(mpvPath ?? ""), [mpvPath]);
+  // The list as the box would show it. Used to detect real changes.
+  const extText = extensions.join(", ");
 
-  const changed = draft.trim() !== (mpvPath ?? "");
+  // If a saved value changes (after a save), reset its box to match.
+  useEffect(() => {
+    setMpvDraft(mpvPath ?? "");
+  }, [mpvPath]);
+  useEffect(() => {
+    setExtDraft(extText);
+  }, [extText]);
+
+  const mpvChanged = mpvDraft.trim() !== (mpvPath ?? "");
+  const extChanged = extDraft.trim() !== extText;
 
   return (
     <details style={{ marginBottom: 12 }}>
@@ -25,34 +46,61 @@ export function SettingsPanel({ mpvPath, busy, onSave, onBrowse }: Props) {
           <input
             style={{ width: "60%" }}
             placeholder="Leave empty to use mpv from your PATH"
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
+            value={mpvDraft}
+            onChange={(e) => setMpvDraft(e.target.value)}
           />
         </label>{" "}
         <button
           disabled={busy}
           onClick={async () => {
             const chosen = await onBrowse();
-            if (chosen) setDraft(chosen);
+            if (chosen) setMpvDraft(chosen);
           }}
         >
           Browse…
         </button>{" "}
         <button
-          disabled={busy || !changed}
-          onClick={() => onSave(draft.trim() || null)}
+          disabled={busy || !mpvChanged}
+          onClick={() => onSaveMpvPath(mpvDraft.trim() || null)}
         >
           Save
         </button>{" "}
         <button
           disabled={busy || mpvPath === null}
-          onClick={() => onSave(null)}
+          onClick={() => onSaveMpvPath(null)}
         >
           Use default
         </button>
         <div style={{ opacity: 0.7, fontSize: "0.9em" }}>
           Takes effect the next time you press Play. Use the full path, such as
           /usr/bin/mpv.
+        </div>
+        <div style={{ marginTop: 16 }}>
+          <label>
+            Video file extensions{" "}
+            <input
+              style={{ width: "60%" }}
+              value={extDraft}
+              onChange={(e) => setExtDraft(e.target.value)}
+            />
+          </label>{" "}
+          <button
+            disabled={busy || !extChanged}
+            onClick={() => onSaveExtensions(extDraft.trim() || null)}
+          >
+            Save
+          </button>{" "}
+          <button
+            disabled={busy || !customExtensions}
+            onClick={() => onSaveExtensions(null)}
+          >
+            Reset to default
+          </button>
+          <div style={{ opacity: 0.7, fontSize: "0.9em" }}>
+            {customExtensions ? "Using your list." : "Using the built-in list."}{" "}
+            Separate with commas, such as mp4, mkv, ts. Applies to folders you
+            add from now on; files you pick by hand are always accepted.
+          </div>
         </div>
       </div>
     </details>

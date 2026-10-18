@@ -63,18 +63,28 @@ impl SettingsState {
         self.get().unwrap_or_default().mpv_program()
     }
 
-    pub fn set_mpv_path(&self, path: Option<String>) -> Result<Settings, String> {
+    // Change settings the safe way: copy, modify the copy, write it to disk,
+    // and only then replace the in-memory value. If the write fails, memory
+    // and disk still agree.
+    fn update(&self, change: impl FnOnce(&mut Settings)) -> Result<Settings, String> {
         let mut current = self
             .settings
             .lock()
             .map_err(|_| "settings lock was poisoned".to_string())?;
 
-        // Build the new value and write it BEFORE replacing the in-memory copy,
-        // so a failed write can never leave memory and disk disagreeing.
-        let updated = Settings { mpv_path: path, ..current.clone() };
+        let mut updated = current.clone();
+        change(&mut updated);
         settings::save(&self.dir, &updated)
             .map_err(|e| format!("Could not save settings: {e}"))?;
         *current = updated.clone();
         Ok(updated)
+    }
+
+    pub fn set_mpv_path(&self, path: Option<String>) -> Result<Settings, String> {
+        self.update(|s| s.mpv_path = path)
+    }
+
+    pub fn set_video_extensions(&self, list: Option<Vec<String>>) -> Result<Settings, String> {
+        self.update(|s| s.video_extensions = list)
     }
 }

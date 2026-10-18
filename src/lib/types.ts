@@ -57,4 +57,5 @@ export interface ProbeProgress {
 
 export interface Settings {
   mpvPath: string | null;
+  videoExtensions: string[] | null; // null = using the built-in list
 }

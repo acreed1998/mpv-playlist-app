@@ -118,6 +118,13 @@ function App() {
     });
   }
 
+  function saveExtensions(text: string | null) {
+    run(async () => {
+      setSettings(await api.setVideoExtensions(text));
+      setExtensions(await api.getVideoExtensions()); // refresh the file picker's filter
+    });
+  }
+
   async function handleSort(key: SortKey, direction: Direction) {
     if (!playlist) return;
 
@@ -250,9 +257,12 @@ function App() {
       {settings && (
         <SettingsPanel
           mpvPath={settings.mpvPath}
+          extensions={extensions}
+          customExtensions={settings.videoExtensions !== null}
           busy={busy}
-          onSave={saveMpvPath}
+          onSaveMpvPath={saveMpvPath}
           onBrowse={browseForMpv}
+          onSaveExtensions={saveExtensions}
         />
       )}
 

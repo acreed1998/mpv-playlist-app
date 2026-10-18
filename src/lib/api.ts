@@ -49,3 +49,6 @@ export const getSettings = () => invoke<Settings>("get_settings");
 
 export const setMpvPath = (path: string | null) =>
   invoke<Settings>("set_mpv_path", { path });
+
+export const setVideoExtensions = (text: string | null) =>
+  invoke<Settings>("set_video_extensions", { text });

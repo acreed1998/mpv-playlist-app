@@ -10,7 +10,7 @@ use crate::playlist::{
     model::{Playlist, SortKey},
     scan, sort,
 };
-use crate::state::{MpvState, PlaylistState, ProbeState};
+use crate::state::{MpvState, PlaylistState, ProbeState, SettingsState};
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -27,8 +27,8 @@ pub fn load_playlist(state: State<'_, PlaylistState>) -> Result<Playlist, String
 }
 
 #[tauri::command]
-pub fn get_video_extensions() -> Vec<&'static str> {
-    scan::VIDEO_EXTENSIONS.to_vec()
+pub fn get_video_extensions(settings: State<'_, SettingsState>) -> Result<Vec<String>, String> {
+    Ok(settings.get()?.extensions())
 }
 
 #[tauri::command(async)]
@@ -37,9 +37,11 @@ pub fn add_paths(
     app: tauri::AppHandle,
     state: State<'_, PlaylistState>,
     probe_state: State<'_, ProbeState>,
+    settings_state: State<'_, SettingsState>,
 ) -> Result<AddResult, String> {
     // 1. Slow part: walk the filesystem. No lock held.
-    let scanned = scan::collect_videos(&paths);
+    let extensions = settings_state.get()?.extensions();
+    let scanned = scan::collect_videos(&paths, &extensions);
 
     // 2. Briefly lock to learn the current sort and the existing paths.
     let (key, mut all_paths) = {
