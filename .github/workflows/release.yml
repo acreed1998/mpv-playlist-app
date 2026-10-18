@@ -41,6 +41,12 @@ jobs:
           node-version: lts/*
           cache: yarn
 
+      - name: Enable Corepack again (for the Node that setup-node just installed)
+        run: corepack enable
+
+      - name: Show yarn version
+        run: yarn --version
+
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ startsWith(matrix.platform, 'macos') && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}

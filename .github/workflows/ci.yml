@@ -30,6 +30,12 @@ jobs:
           node-version: lts/*
           cache: yarn
 
+      - name: Enable Corepack again (for the Node that setup-node just installed)
+        run: corepack enable
+
+      - name: Show yarn version
+        run: yarn --version
+
       - uses: dtolnay/rust-toolchain@stable
 
       - uses: swatinem/rust-cache@v2
