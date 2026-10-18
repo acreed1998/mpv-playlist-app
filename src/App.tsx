@@ -1,34 +1,23 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { open, ask } from "@tauri-apps/plugin-dialog";
+import { ask, open } from "@tauri-apps/plugin-dialog";
+import { arrayMove } from "@dnd-kit/sortable";
 import * as api from "./lib/api";
 import type {
-  AddResult,
   DependencyReport,
   Direction,
   Playlist,
+  ProbeProgress,
   ResumeState,
   SortKey,
   Track,
-  ProbeProgress,
 } from "./lib/types";
+import { describeAdd } from "./lib/format";
+import { useMissingFiles } from "./hooks/useMissingFiles";
+import { useTauriEvent } from "./hooks/useTauriEvent";
 import { DependencyBanner } from "./components/DependencyBanner";
+import { PlaybackControls } from "./components/PlaybackControls";
 import { SortControls } from "./components/SortControls";
-import { arrayMove } from "@dnd-kit/sortable";
 import { TrackList } from "./components/TrackList";
-import { listen } from "@tauri-apps/api/event";
-import { formatTime } from "./lib/format";
-
-// Turn the backend's counts into a sentence for the user.
-function describeAdd(result: AddResult): string {
-  const parts = [`Added ${result.added} video${result.added === 1 ? "" : "s"}`];
-  if (result.duplicatesSkipped > 0) {
-    parts.push(`skipped ${result.duplicatesSkipped} duplicate(s)`);
-  }
-  if (result.unreadable > 0) {
-    parts.push(`${result.unreadable} item(s) could not be read`);
-  }
-  return parts.join(", ") + ".";
-}
 
 function App() {
   const [deps, setDeps] = useState<DependencyReport | null>(null);
@@ -37,9 +26,18 @@ function App() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [missingIds, setMissingIds] = useState<Set<string>>(new Set());
-  const [checkTick, setCheckTick] = useState(0); // bump this to force a re-check
   const [probe, setProbe] = useState<ProbeProgress | null>(null);
+
+  const { missingIds, recheck } = useMissingFiles(
+    playlist?.tracks.length ?? 0,
+    setError,
+  );
+
+  // Live updates pushed from Rust.
+  useTauriEvent<ResumeState | null>("resume-changed", (resume) =>
+    setPlaylist((current) => (current ? { ...current, resume } : current)),
+  );
+  useTauriEvent<ProbeProgress>("probe-progress", setProbe);
 
   // Wrap any backend call: reset messages, mark busy, report failures.
   async function run(action: () => Promise<unknown>) {
@@ -56,6 +54,7 @@ function App() {
       setProbe(null);
     }
   }
+
   const runDependencyCheck = useCallback(() => {
     api
       .checkDependencies()
@@ -111,7 +110,7 @@ function App() {
           cancelLabel: "Keep my order",
         },
       );
-      if (!proceed) return; // the user backed out: change nothing
+      if (!proceed) return;
     }
 
     run(async () => {
@@ -207,67 +206,6 @@ function App() {
 
   const mpvReady = deps?.mpv.available ?? false;
 
-  useEffect(() => {
-    let cancelled = false;
-    let unlisten: (() => void) | undefined;
-
-    listen<ResumeState | null>("resume-changed", (event) => {
-      // The updater form reads the *latest* state, not a stale copy captured earlier.
-      setPlaylist((current) =>
-        current ? { ...current, resume: event.payload } : current,
-      );
-    }).then((stop) => {
-      if (cancelled)
-        stop(); // the component unmounted before the listener was ready
-      else unlisten = stop;
-    });
-
-    return () => {
-      cancelled = true;
-      unlisten?.();
-    };
-  }, []);
-
-  const trackCount = playlist?.tracks.length ?? 0;
-
-  useEffect(() => {
-    if (trackCount === 0) {
-      setMissingIds(new Set());
-      return;
-    }
-
-    let cancelled = false;
-    api
-      .findMissingTracks()
-      .then((ids) => {
-        if (!cancelled) setMissingIds(new Set(ids));
-      })
-      .catch((err) => {
-        if (!cancelled) setError(String(err));
-      });
-
-    return () => {
-      cancelled = true; // a newer check has started; ignore this one's answer
-    };
-  }, [trackCount, checkTick]);
-
-  useEffect(() => {
-    let cancelled = false;
-    let unlisten: (() => void) | undefined;
-
-    listen<ProbeProgress>("probe-progress", (event) =>
-      setProbe(event.payload),
-    ).then((stop) => {
-      if (cancelled) stop();
-      else unlisten = stop;
-    });
-
-    return () => {
-      cancelled = true;
-      unlisten?.();
-    };
-  }, []);
-
   return (
     <main style={{ padding: 24 }}>
       {deps && (
@@ -279,6 +217,7 @@ function App() {
           <h2>
             {playlist.name} ({playlist.tracks.length} tracks)
           </h2>
+
           <div style={{ marginBottom: 12 }}>
             <button
               onClick={pickFiles}
@@ -304,6 +243,7 @@ function App() {
               Allow duplicate files
             </label>
           </div>
+
           <SortControls
             current={playlist.sort}
             busy={busy}
@@ -311,43 +251,21 @@ function App() {
             ffprobeReady={deps?.ffprobe.available ?? false}
             onSort={handleSort}
           />
-          <div style={{ marginBottom: 12 }}>
-            {resumeInfo ? (
-              <>
-                <button
-                  onClick={() => run(() => api.playPlaylist(undefined, true))}
-                  disabled={!mpvReady || busy}
-                >
-                  ▶ Resume
-                </button>{" "}
-                <button
-                  onClick={() => run(() => api.playPlaylist(undefined, false))}
-                  disabled={!mpvReady || busy}
-                >
-                  ⟲ Start over
-                </button>{" "}
-              </>
-            ) : (
-              <button
-                onClick={() => run(() => api.playPlaylist())}
-                disabled={!mpvReady || busy || playlist.tracks.length === 0}
-              >
-                ▶ Play
-              </button>
-            )}{" "}
-            <button onClick={() => run(() => api.stopVideo())} disabled={busy}>
-              ■ Stop
-            </button>
-            {resumeInfo && (
-              <div style={{ opacity: 0.7, fontSize: "0.9em" }}>
-                Resume point: track {resumeInfo.index + 1} of{" "}
-                {orderedTracks.length} at {formatTime(resumeInfo.secs)}
-              </div>
-            )}
-          </div>
+
+          <PlaybackControls
+            mpvReady={mpvReady}
+            busy={busy}
+            trackCount={playlist.tracks.length}
+            resume={resumeInfo}
+            onPlay={() => run(() => api.playPlaylist())}
+            onResume={() => run(() => api.playPlaylist(undefined, true))}
+            onStartOver={() => run(() => api.playPlaylist(undefined, false))}
+            onStop={() => run(() => api.stopVideo())}
+          />
+
           <div style={{ marginBottom: 12 }}>
             <button
-              onClick={() => setCheckTick((n) => n + 1)}
+              onClick={recheck}
               disabled={busy || playlist.tracks.length === 0}
             >
               Re-check files
@@ -359,6 +277,7 @@ function App() {
               Clear playlist
             </button>
           </div>
+
           {missingIds.size > 0 && (
             <div
               style={{
@@ -375,6 +294,7 @@ function App() {
               </button>
             </div>
           )}
+
           {busy && !(probe && probe.total > 0) && <p>Working…</p>}
           {busy && probe && probe.total > 0 && (
             <p>
@@ -383,6 +303,7 @@ function App() {
             </p>
           )}
           {notice && <p>{notice}</p>}
+
           <TrackList
             tracks={orderedTracks}
             currentTrackId={resumeInfo?.track.id ?? null}
@@ -391,7 +312,7 @@ function App() {
             onMove={moveTrack}
             onPlayFrom={(id) => run(() => api.playPlaylist(id))}
             onRemove={removeOne}
-          />{" "}
+          />
         </>
       )}
 
