@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ask, open } from "@tauri-apps/plugin-dialog";
 import { arrayMove } from "@dnd-kit/sortable";
+import { Button } from "@mui/material";
 import * as api from "./lib/api";
 import type {
   DependencyReport,
@@ -367,6 +368,8 @@ function App() {
             onPlayFrom={(id) => run(() => api.playPlaylist(id))}
             onRemove={removeOne}
           />
+
+          <Button>Mui Works</Button>
         </>
       )}
 
