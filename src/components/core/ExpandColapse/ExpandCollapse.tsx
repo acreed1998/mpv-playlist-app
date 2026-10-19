@@ -82,7 +82,7 @@ export const ExpandCollapse = ({
         )}
         id={ids.accordionDetails}
       >
-        {children}
+        {expanded ? children : null}
       </AccordionDetails>
     </Accordion>
   );
