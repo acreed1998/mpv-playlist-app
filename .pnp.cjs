@@ -40,6 +40,7 @@ const RAW_RUNTIME_STATE =
           ["@tauri-apps/cli", "npm:2.12.2"],\
           ["@tauri-apps/plugin-dialog", "npm:2.8.3"],\
           ["@tauri-apps/plugin-opener", "npm:2.7.1"],\
+          ["@types/node", "npm:24.19.2"],\
           ["@types/react", "npm:19.3.0"],\
           ["@types/react-dom", "virtual:5080a9f4f176261d5b954a43822857b08a1d7506cf5ff3c5ecd3f13a6d7d235aef4b2b4cb7cd49a2d04b44041cfe2690c3a8772f5d2a0c90e0e868f8bf5a7638#npm:19.3.0"],\
           ["@vitejs/plugin-react", "virtual:5080a9f4f176261d5b954a43822857b08a1d7506cf5ff3c5ecd3f13a6d7d235aef4b2b4cb7cd49a2d04b44041cfe2690c3a8772f5d2a0c90e0e868f8bf5a7638#npm:6.1.2"],\
@@ -1083,6 +1084,16 @@ const RAW_RUNTIME_STATE =
         "linkType": "HARD"\
       }]\
     ]],\
+    ["@types/node", [\
+      ["npm:24.19.2", {\
+        "packageLocation": "../../.yarn/berry/cache/@types-node-npm-24.19.2-57343a6385-10c0.zip/node_modules/@types/node/",\
+        "packageDependencies": [\
+          ["@types/node", "npm:24.19.2"],\
+          ["undici-types", "npm:7.24.6"]\
+        ],\
+        "linkType": "HARD"\
+      }]\
+    ]],\
     ["@types/parse-json", [\
       ["npm:4.0.2", {\
         "packageLocation": "../../.yarn/berry/cache/@types-parse-json-npm-4.0.2-f87f65692e-10c0.zip/node_modules/@types/parse-json/",\
@@ -1674,6 +1685,7 @@ const RAW_RUNTIME_STATE =
           ["@tauri-apps/cli", "npm:2.12.2"],\
           ["@tauri-apps/plugin-dialog", "npm:2.8.3"],\
           ["@tauri-apps/plugin-opener", "npm:2.7.1"],\
+          ["@types/node", "npm:24.19.2"],\
           ["@types/react", "npm:19.3.0"],\
           ["@types/react-dom", "virtual:5080a9f4f176261d5b954a43822857b08a1d7506cf5ff3c5ecd3f13a6d7d235aef4b2b4cb7cd49a2d04b44041cfe2690c3a8772f5d2a0c90e0e868f8bf5a7638#npm:19.3.0"],\
           ["@vitejs/plugin-react", "virtual:5080a9f4f176261d5b954a43822857b08a1d7506cf5ff3c5ecd3f13a6d7d235aef4b2b4cb7cd49a2d04b44041cfe2690c3a8772f5d2a0c90e0e868f8bf5a7638#npm:6.1.2"],\
@@ -2066,6 +2078,15 @@ const RAW_RUNTIME_STATE =
         "linkType": "HARD"\
       }]\
     ]],\
+    ["undici-types", [\
+      ["npm:7.24.6", {\
+        "packageLocation": "../../.yarn/berry/cache/undici-types-npm-7.24.6-8759b28e34-10c0.zip/node_modules/undici-types/",\
+        "packageDependencies": [\
+          ["undici-types", "npm:7.24.6"]\
+        ],\
+        "linkType": "HARD"\
+      }]\
+    ]],\
     ["vite", [\
       ["npm:8.3.4", {\
         "packageLocation": "../../.yarn/berry/cache/vite-npm-8.3.4-bb76ec9b02-10c0.zip/node_modules/vite/",\
@@ -2080,7 +2101,7 @@ const RAW_RUNTIME_STATE =
           ["@types/esbuild", null],\
           ["@types/jiti", null],\
           ["@types/less", null],\
-          ["@types/node", null],\
+          ["@types/node", "npm:24.19.2"],\
           ["@types/sass", null],\
           ["@types/sass-embedded", null],\
           ["@types/stylus", null],\
