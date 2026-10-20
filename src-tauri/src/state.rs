@@ -87,4 +87,8 @@ impl SettingsState {
     pub fn set_video_extensions(&self, list: Option<Vec<String>>) -> Result<Settings, String> {
         self.update(|s| s.video_extensions = list)
     }
+
+    pub fn set_playback_speed(&self, speed: Option<String>) -> Result<Settings, String> {
+        self.update(|s| s.playback_speed = speed)
+    }
 }

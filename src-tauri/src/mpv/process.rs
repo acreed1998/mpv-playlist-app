@@ -18,7 +18,7 @@ pub fn stop_existing(slot: &mut Option<Child>) {
 
 // Launch mpv on a queue file, starting at the given entry.
 // Everything about HOW mpv is started lives here, so there is one place to change.
-pub fn spawn_mpv(program: &str, queue_path: &Path, start_index: usize) -> Result<Child, String> {
+pub fn spawn_mpv(program: &str, queue_path: &Path, start_index: usize, playback_speed: &str) -> Result<Child, String> {
     // A killed mpv can't delete its socket; remove it so we only ever
     // connect to the NEW mpv.
     ipc::remove_stale_socket();
@@ -27,6 +27,7 @@ pub fn spawn_mpv(program: &str, queue_path: &Path, start_index: usize) -> Result
         .arg(format!("--input-ipc-server={}", ipc::IPC_PATH))
         .arg(format!("--playlist-start={start_index}"))
         .arg(format!("--playlist={}", queue_path.display()))
+        .arg(format!("--speed={}", playback_speed))
         .stdin(Stdio::null())
         .stdout(Stdio::null())
         .stderr(Stdio::inherit())

@@ -52,3 +52,6 @@ export const setMpvPath = (path: string | null) =>
 
 export const setVideoExtensions = (text: string | null) =>
   invoke<Settings>("set_video_extensions", { text });
+
+export const setPlaybackSpeed = (speed: string | null) =>
+  invoke<Settings>("set_playback_speed", { speed });

@@ -126,6 +126,12 @@ function App() {
     });
   }
 
+  const savePlaybackSpeed = (speed: string | null) => {
+    run(async () => {
+      setSettings(await api.setPlaybackSpeed(speed));
+    });
+  };
+
   async function handleSort(key: SortKey, direction: Direction) {
     if (!playlist) return;
 
@@ -258,12 +264,14 @@ function App() {
       {settings && (
         <SettingsPanel
           mpvPath={settings.mpvPath}
+          playbackSpeed={settings.playbackSpeed}
           extensions={extensions}
           customExtensions={settings.videoExtensions !== null}
           busy={busy}
           onSaveMpvPath={saveMpvPath}
           onBrowse={browseForMpv}
           onSaveExtensions={saveExtensions}
+          onSavePlaybackSpeed={savePlaybackSpeed}
         />
       )}
 

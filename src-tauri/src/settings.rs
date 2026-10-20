@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 use crate::playlist::scan;
 
 const DEFAULT_MPV: &str = "mpv";
+const DEFAULT_PLAYBACK_SPEED: &str = "1.00";
 
 // `default` means: any field missing from the file gets its default value.
 // Files written by older versions of the app keep loading as settings are added.
@@ -14,6 +15,7 @@ const DEFAULT_MPV: &str = "mpv";
 pub struct Settings {
     pub mpv_path: Option<String>, // None = look for "mpv" on the PATH
     pub video_extensions: Option<Vec<String>>, // None = the built-in list
+    pub playback_speed: Option<String> // None = 1.00
 }
 
 impl Settings {
@@ -29,6 +31,12 @@ impl Settings {
         self.video_extensions
             .clone()
             .unwrap_or_else(scan::default_extensions)
+    }
+
+    pub fn mpv_playback_speed(&self) -> String {
+        self.playback_speed
+            .clone()
+            .unwrap_or_else(|| DEFAULT_PLAYBACK_SPEED.to_string())
     }
 }
 

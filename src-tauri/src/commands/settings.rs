@@ -33,3 +33,13 @@ pub fn set_video_extensions(
     };
     state.set_video_extensions(list)
 }
+
+#[tauri::command]
+pub fn set_playback_speed(
+    speed: Option<String>,
+    state: State<'_, SettingsState>,
+) -> Result<Settings, String> {
+    // `None`, an empty string, and "only quotes" all mean "use the default".
+    let cleaned = speed.as_deref().and_then(settings::normalize_path);
+    state.set_playback_speed(cleaned)
+}

@@ -44,6 +44,7 @@ const RAW_RUNTIME_STATE =
           ["@types/react", "npm:19.3.0"],\
           ["@types/react-dom", "virtual:5080a9f4f176261d5b954a43822857b08a1d7506cf5ff3c5ecd3f13a6d7d235aef4b2b4cb7cd49a2d04b44041cfe2690c3a8772f5d2a0c90e0e868f8bf5a7638#npm:19.3.0"],\
           ["@vitejs/plugin-react", "virtual:5080a9f4f176261d5b954a43822857b08a1d7506cf5ff3c5ecd3f13a6d7d235aef4b2b4cb7cd49a2d04b44041cfe2690c3a8772f5d2a0c90e0e868f8bf5a7638#npm:6.1.2"],\
+          ["clsx", "npm:2.1.1"],\
           ["mpv-playlist-app", "workspace:."],\
           ["react", "npm:19.3.0"],\
           ["react-dom", "virtual:5080a9f4f176261d5b954a43822857b08a1d7506cf5ff3c5ecd3f13a6d7d235aef4b2b4cb7cd49a2d04b44041cfe2690c3a8772f5d2a0c90e0e868f8bf5a7638#npm:19.3.0"],\
@@ -1689,6 +1690,7 @@ const RAW_RUNTIME_STATE =
           ["@types/react", "npm:19.3.0"],\
           ["@types/react-dom", "virtual:5080a9f4f176261d5b954a43822857b08a1d7506cf5ff3c5ecd3f13a6d7d235aef4b2b4cb7cd49a2d04b44041cfe2690c3a8772f5d2a0c90e0e868f8bf5a7638#npm:19.3.0"],\
           ["@vitejs/plugin-react", "virtual:5080a9f4f176261d5b954a43822857b08a1d7506cf5ff3c5ecd3f13a6d7d235aef4b2b4cb7cd49a2d04b44041cfe2690c3a8772f5d2a0c90e0e868f8bf5a7638#npm:6.1.2"],\
+          ["clsx", "npm:2.1.1"],\
           ["mpv-playlist-app", "workspace:."],\
           ["react", "npm:19.3.0"],\
           ["react-dom", "virtual:5080a9f4f176261d5b954a43822857b08a1d7506cf5ff3c5ecd3f13a6d7d235aef4b2b4cb7cd49a2d04b44041cfe2690c3a8772f5d2a0c90e0e868f8bf5a7638#npm:19.3.0"],\

@@ -56,6 +56,11 @@ export const ExpandCollapse = ({
       slotProps={{
         ...accordionSlots?.slotProps,
         heading: { role: "heading", ...accordionSlots?.slotProps?.heading },
+        region: {
+          "aria-labelledby": ids.accordionSummary,
+          id: `${ids.accordionDetails}`,
+          ...accordionSlots?.slotProps?.region,
+        },
       }}
       slots={accordionSlots?.slots}
     >
@@ -75,12 +80,10 @@ export const ExpandCollapse = ({
         {headerContent}
       </AccordionSummary>
       <AccordionDetails
-        aria-labelledby={ids.accordionDetails}
         className={clsx(
           "expand-collapse-details",
           classNames?.accordionDetails,
         )}
-        id={ids.accordionDetails}
       >
         {expanded ? children : null}
       </AccordionDetails>

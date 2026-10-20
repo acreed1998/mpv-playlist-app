@@ -60,6 +60,7 @@ pub fn run() {
             commands::settings::get_settings,
             commands::settings::set_mpv_path,
             commands::settings::set_video_extensions,
+            commands::settings::set_playback_speed,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application");
