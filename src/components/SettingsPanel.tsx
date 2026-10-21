@@ -50,74 +50,6 @@ export function SettingsPanel({
 
   return (
     <>
-      <details style={{ marginBottom: 12 }}>
-        <summary>Settings</summary>
-        <div style={{ padding: "8px 0" }}>
-          <label>
-            mpv location{" "}
-            <input
-              style={{ width: "60%" }}
-              placeholder="Leave empty to use mpv from your PATH"
-              value={mpvDraft}
-              onChange={(e) => setMpvDraft(e.target.value)}
-            />
-          </label>{" "}
-          <button
-            disabled={busy}
-            onClick={async () => {
-              const chosen = await onBrowse();
-              if (chosen) setMpvDraft(chosen);
-            }}
-          >
-            Browse…
-          </button>{" "}
-          <button
-            disabled={busy || !mpvChanged}
-            onClick={() => onSaveMpvPath(mpvDraft.trim() || null)}
-          >
-            Save
-          </button>{" "}
-          <button
-            disabled={busy || mpvPath === null}
-            onClick={() => onSaveMpvPath(null)}
-          >
-            Use default
-          </button>
-          <div style={{ opacity: 0.7, fontSize: "0.9em" }}>
-            Takes effect the next time you press Play. Use the full path, such
-            as /usr/bin/mpv.
-          </div>
-          <div style={{ marginTop: 16 }}>
-            <label>
-              Video file extensions{" "}
-              <input
-                style={{ width: "60%" }}
-                value={extDraft}
-                onChange={(e) => setExtDraft(e.target.value)}
-              />
-            </label>{" "}
-            <button
-              disabled={busy || !extChanged}
-              onClick={() => onSaveExtensions(extDraft.trim() || null)}
-            >
-              Save
-            </button>{" "}
-            <button
-              disabled={busy || !customExtensions}
-              onClick={() => onSaveExtensions(null)}
-            >
-              Reset to default
-            </button>
-            <div style={{ opacity: 0.7, fontSize: "0.9em" }}>
-              {customExtensions
-                ? "Using your list."
-                : "Using the built-in list."}{" "}
-              Separate with commas, such as mp4, mkv, ts. Applies to folders you
-              add from now on; files you pick by hand are always accepted.
-            </div>
-          </div>
-        </div>
-      </details>
       <ExpandCollapse
         headerContent={"Settings"}
         ids={{
@@ -127,6 +59,7 @@ export function SettingsPanel({
         }}
       >
         <Box sx={{ p: "8px 0" }}>
+          {/* MPV Path Setting */}
           <Grid container sx={{ pb: "1.5rem" }}>
             <Grid size={{ xs: 12 }}>
               <TextInput
@@ -173,7 +106,9 @@ export function SettingsPanel({
               />
             </Grid>
           </Grid>
-          <Grid container>
+
+          {/* MPV Playback Speed Setting */}
+          <Grid container sx={{ pb: "1.5rem" }}>
             <TextInput
               helperText="Leave empty to use the default playback speed of 1.00"
               ids={{
@@ -191,6 +126,51 @@ export function SettingsPanel({
               label="playback speed"
               value={speedDraft}
             />
+          </Grid>
+
+          {/* Video File Extensions Setting */}
+          <Grid container>
+            <Grid size={12}>
+              <TextInput
+                ids={{
+                  helperText: "settings-pannel-extensions-helper-text",
+                  input: "settings-pannel-extensions-input",
+                  label: "settings-pannel-extensions-label",
+                }}
+                formControlProps={{ fullWidth: true }}
+                helperText={
+                  <>
+                    {customExtensions
+                      ? "Using your list."
+                      : "Using the built-in list."}{" "}
+                    Separate with commas, such as mp4, mkv, ts. Applies to
+                    folders you add from now on; files you pick by hand are
+                    always accepted.
+                  </>
+                }
+                inputProps={{ onChange: (e) => setExtDraft(e.target.value) }}
+                label="Video File Extensions"
+                value={extDraft}
+              />
+            </Grid>
+            <Grid size={12}>
+              <SplitButtons
+                buttonData={[
+                  {
+                    key: "save",
+                    label: "Save",
+                    onClick: () => onSaveExtensions(extDraft.trim() || null),
+                    otherProps: { disabled: busy || !extChanged },
+                  },
+                  {
+                    key: "rest-to-default",
+                    label: "Reset to Default",
+                    onClick: () => onSaveExtensions(null),
+                    otherProps: { disabled: busy || !customExtensions },
+                  },
+                ]}
+              />
+            </Grid>
           </Grid>
         </Box>
       </ExpandCollapse>
