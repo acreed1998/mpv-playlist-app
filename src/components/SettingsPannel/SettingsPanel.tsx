@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { ExpandCollapse, TextInput } from "../core";
-import { Box, Grid } from "@mui/material";
+import { Box, Grid, Checkbox, FormControlLabel } from "@mui/material";
 import { MPVPathSetting } from "./MPVPathSetting";
 import { VideoFileExtensionsSetting } from "./VideoFileExtensionsSetting";
 
@@ -105,15 +105,23 @@ export function SettingsPanel({
               value={speedDraft}
             />
           </Grid>
-          <label>
-            <input
-              type="checkbox"
+
+          {/* Restart MPV on video finish setting */}
+          <Grid container sx={{ pb: "1.5rem" }}>
+            <FormControlLabel
               checked={restartMpvOnTrackEnd}
+              control={
+                <Checkbox
+                  checked={restartMpvOnTrackEnd}
+                  disabled={busy}
+                  id="setting-panel-restart-mpv-checkbox"
+                  onChange={(e) => onSaveRestartMpvOnTrackEnd(e.target.checked)}
+                />
+              }
               disabled={busy}
-              onChange={(e) => onSaveRestartMpvOnTrackEnd(e.target.checked)}
-            />{" "}
-            Close and reopen MPV after each video
-          </label>
+              label={"Close and reopen MPV after each video"}
+            />
+          </Grid>
         </Box>
       </ExpandCollapse>
     </>
