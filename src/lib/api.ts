@@ -55,3 +55,6 @@ export const setVideoExtensions = (text: string | null) =>
 
 export const setPlaybackSpeed = (speed: string | null) =>
   invoke<Settings>("set_playback_speed", { speed });
+
+export const setRestartMpvOnTrackEnd = (enabled: boolean) =>
+  invoke<Settings>("set_restart_mpv_on_track_end", { enabled });

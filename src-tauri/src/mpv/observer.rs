@@ -6,6 +6,7 @@ use serde_json::{Value, json};
 use tauri::{AppHandle, Emitter, Manager};
 
 use super::ipc;
+use super::process;
 use super::tracker::{Tracker, Update};
 use crate::playlist::{model::ResumeState, storage};
 use crate::state::{MpvState, PlaylistState};
@@ -21,8 +22,12 @@ its sandbox can hide the socket: install the regular package instead (for exampl
 // Everything the observer needs to know about the launch it's watching.
 pub struct Session {
     pub track_ids: Vec<String>,
+    pub paths: Vec<String>,
     pub start_index: usize,
     pub start_secs: f64,
+    pub restart_mpv_on_track_end: bool,
+    pub program: String,
+    pub playback_speed: String,
 }
 
 // "Has enough time passed since the last time this said yes?"
@@ -58,79 +63,125 @@ fn send(conn: &mut ipc::Conn, command: Value) -> io::Result<()> {
     writeln!(conn, "{}", json!({ "command": command }))
 }
 
-fn observe(app: &AppHandle, generation: u64, session: Session) -> Result<(), String> {
-    let conn = match ipc::connect_with_retry() {
-        Ok(conn) => conn,
-        Err(e) => {
-            eprintln!("mpv observer could not connect: {e}");
-            report_tracking_failure(app, generation, CONNECT_FAILED);
-            return Ok(());
-        }
-    };
-
-    let mut reader = BufReader::new(conn);
-
-    // Ask mpv to push us an event whenever these change.
-    for (id, name) in [(1, "playlist-pos"), (2, "time-pos")] {
-        send(reader.get_mut(), json!(["observe_property", id, name]))
-            .map_err(|e| format!("could not talk to mpv: {e}"))?;
-    }
-
-    let mut tracker = Tracker::new(session.track_ids, session.start_index, session.start_secs);
-    let mut progress_timer = Throttle::new(PROGRESS_EVERY);
-    let mut save_timer = Throttle::new(SAVE_EVERY);
-    let mut line = String::new();
-
-    loop {
-        line.clear();
-        match reader.read_line(&mut line) {
-            Ok(0) | Err(_) => break, // mpv closed the connection (it exited, or was killed)
-            Ok(_) => {}
-        }
-
-        let Ok(msg) = serde_json::from_str::<Value>(&line) else {
-            continue;
-        };
-        let Some(update) = tracker.handle(&msg) else {
-            continue;
-        };
-
-        match update {
-            Update::Seek(secs) => {
-                send(reader.get_mut(), json!(["seek", secs, "absolute"]))
-                    .map_err(|e| format!("could not talk to mpv: {e}"))?;
+fn observe(app: &AppHandle, generation: u64, mut session: Session) -> Result<(), String> {
+    'sessions: loop {
+        let conn = match ipc::connect_with_retry() {
+            Ok(conn) => conn,
+            Err(e) => {
+                eprintln!("mpv observer could not connect: {e}");
+                report_tracking_failure(app, generation, CONNECT_FAILED);
+                return Ok(());
             }
-            Update::Progress {
-                track_id,
-                secs,
-                urgent,
-            } => {
-                let due = progress_timer.ready();
-                if !urgent && !due {
-                    continue;
+        };
+
+        let mut reader = BufReader::new(conn);
+
+        // Ask mpv to push us an event whenever these change.
+        for (id, name) in [(1, "playlist-pos"), (2, "time-pos")] {
+            send(reader.get_mut(), json!(["observe_property", id, name]))
+                .map_err(|e| format!("could not talk to mpv: {e}"))?;
+        }
+
+        let mut tracker = Tracker::new(
+            session.track_ids.clone(),
+            session.start_index,
+            session.start_secs,
+            session.restart_mpv_on_track_end,
+        );
+        let mut progress_timer = Throttle::new(PROGRESS_EVERY);
+        let mut save_timer = Throttle::new(SAVE_EVERY);
+        let mut line = String::new();
+
+        loop {
+            line.clear();
+            match reader.read_line(&mut line) {
+                Ok(0) | Err(_) => break, // mpv closed the connection (it exited, or was killed)
+                Ok(_) => {}
+            }
+
+            let Ok(msg) = serde_json::from_str::<Value>(&line) else {
+                continue;
+            };
+            let Some(update) = tracker.handle(&msg) else {
+                continue;
+            };
+
+            match update {
+                Update::Seek(secs) => {
+                    send(reader.get_mut(), json!(["seek", secs, "absolute"]))
+                        .map_err(|e| format!("could not talk to mpv: {e}"))?;
                 }
-                let save_now = save_timer.ready() || urgent;
-                let resume = Some(ResumeState {
+                Update::Progress {
                     track_id,
-                    position_secs: secs,
-                });
+                    secs,
+                    urgent,
+                } => {
+                    let due = progress_timer.ready();
+                    if !urgent && !due {
+                        continue;
+                    }
+                    let save_now = save_timer.ready() || urgent;
+                    let resume = Some(ResumeState {
+                        track_id,
+                        position_secs: secs,
+                    });
 
-                if !record(app, generation, resume.clone(), save_now) {
-                    return Ok(()); // a newer session took over
+                    if !record(app, generation, resume.clone(), save_now) {
+                        return Ok(()); // a newer session took over
+                    }
+                    let _ = app.emit("resume-changed", resume);
                 }
-                let _ = app.emit("resume-changed", resume);
-            }
-            Update::Finished => {
-                if !record(app, generation, None, true) {
-                    return Ok(());
+                Update::Finished => {
+                    if !record(app, generation, None, true) {
+                        return Ok(());
+                    }
+                    let _ = app.emit("resume-changed", None::<ResumeState>);
                 }
-                let _ = app.emit("resume-changed", None::<ResumeState>);
+                Update::RestartAt(index) => {
+                    let Some(path) = session.paths.get(index) else {
+                        return Err(format!("No video exists at playlist position {index}."));
+                    };
+                    let Some(track_id) = session.track_ids.get(index) else {
+                        return Err(format!("No track ID exists at playlist position {index}."));
+                    };
+                    let mpv_state = app.state::<MpvState>();
+                    let restarted = match process::restart_mpv_for_track(
+                        &mpv_state,
+                        generation,
+                        &session.program,
+                        path,
+                        &session.playback_speed,
+                    ) {
+                        Ok(restarted) => restarted,
+                        Err(error) => {
+                            let message =
+                                format!("Could not reopen MPV for the next video: {error}");
+                            report_tracking_failure(app, generation, &message);
+                            return Err(message);
+                        }
+                    };
+                    if !restarted {
+                        return Ok(());
+                    }
+
+                    let resume = Some(ResumeState {
+                        track_id: track_id.clone(),
+                        position_secs: 0.0,
+                    });
+                    if !record(app, generation, resume.clone(), true) {
+                        return Ok(());
+                    }
+                    let _ = app.emit("resume-changed", resume);
+                    session.start_index = index;
+                    session.start_secs = 0.0;
+                    continue 'sessions;
+                }
             }
         }
-    }
 
-    flush(app, generation); // mpv is gone: make sure the last position is on disk
-    Ok(())
+        flush(app, generation); // mpv is gone: make sure the last position is on disk
+        return Ok(());
+    }
 }
 
 // Update the in-memory playlist (and optionally the file).

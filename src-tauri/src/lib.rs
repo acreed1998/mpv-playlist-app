@@ -61,6 +61,7 @@ pub fn run() {
             commands::settings::set_mpv_path,
             commands::settings::set_video_extensions,
             commands::settings::set_playback_speed,
+            commands::settings::set_restart_mpv_on_track_end,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application");

@@ -24,23 +24,30 @@ pub fn play_playlist(
         (queue, start.seconds)
     };
 
-    // 2. Write the queue file where mpv can read it.
+    // 2. Write the queue file where mpv can read it in normal playlist mode.
     let queue_path = playlist_state.dir.join("queue.m3u8");
-    fs::write(&queue_path, queue::queue_file_text(&queue.paths))
-        .map_err(|e| format!("Could not write the queue file: {e}"))?;
+    let settings = settings_state.get()?;
+    if !settings.restart_mpv_on_track_end {
+        fs::write(&queue_path, queue::queue_file_text(&queue.paths))
+            .map_err(|e| format!("Could not write the queue file: {e}"))?;
+    }
 
     // 3. Stop the previous mpv (saving its position) and retire its observer.
     process::halt_mpv(&mpv_state, &playlist_state);
 
     // 4. Start the new mpv, using the configured program.
-    let program = settings_state.mpv_program();
-    let playback_speed = settings_state.get()?.mpv_playback_speed();
+    let program = settings.mpv_program();
+    let playback_speed = settings.mpv_playback_speed();
     let mut slot = mpv_state
         .child
         .lock()
         .map_err(|_| "mpv state lock was poisoned".to_string())?;
     process::stop_existing(&mut slot); // normally already empty
-    *slot = Some(process::spawn_mpv(&program, &queue_path, queue.start_index, &playback_speed)?);
+    *slot = Some(if settings.restart_mpv_on_track_end {
+        process::spawn_mpv_track(&program, &queue.paths[queue.start_index], &playback_speed)?
+    } else {
+        process::spawn_mpv(&program, &queue_path, queue.start_index, &playback_speed)?
+    });
 
     // 5. Clear any old tracking warning, then start watching the new session.
     let _ = app.emit("tracking-status", None::<String>);
@@ -50,8 +57,12 @@ pub fn play_playlist(
         generation,
         observer::Session {
             track_ids: queue.track_ids,
+            paths: queue.paths,
             start_index: queue.start_index,
             start_secs,
+            restart_mpv_on_track_end: settings.restart_mpv_on_track_end,
+            program,
+            playback_speed,
         },
     );
 

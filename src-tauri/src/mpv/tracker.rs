@@ -14,6 +14,8 @@ pub enum Update {
     Seek(f64),
     // The last track ended naturally: the playlist is done.
     Finished,
+    // This track ended naturally and MPV should be relaunched on the next one.
+    RestartAt(usize),
 }
 
 pub struct Tracker {
@@ -22,16 +24,23 @@ pub struct Tracker {
     pending_seek: Option<f64>, // a resume position we still need to apply
     index: Option<usize>,   // the entry mpv says is playing right now
     finished: bool,
+    restart_mpv_on_track_end: bool,
 }
 
 impl Tracker {
-    pub fn new(track_ids: Vec<String>, start_index: usize, start_secs: f64) -> Self {
+    pub fn new(
+        track_ids: Vec<String>,
+        start_index: usize,
+        start_secs: f64,
+        restart_mpv_on_track_end: bool,
+    ) -> Self {
         Tracker {
             track_ids,
             start_index,
             pending_seek: (start_secs > 0.0).then_some(start_secs),
-            index: None,
+            index: restart_mpv_on_track_end.then_some(start_index),
             finished: false,
+            restart_mpv_on_track_end,
         }
     }
 
@@ -54,7 +63,16 @@ impl Tracker {
 
     fn on_position(&mut self, raw: i64) -> Option<Update> {
         // mpv reports -1 when nothing is playing; that doesn't fit a usize, so it's skipped.
-        let index = usize::try_from(raw).ok()?;
+        let reported_index = usize::try_from(raw).ok()?;
+        let index = if self.restart_mpv_on_track_end {
+            // In restart mode each MPV process receives a one-entry playlist.
+            if reported_index != 0 {
+                return None;
+            }
+            self.start_index
+        } else {
+            reported_index
+        };
         let track_id = self.track_ids.get(index)?.clone();
 
         self.index = Some(index);
@@ -94,12 +112,23 @@ impl Tracker {
         let on_last_track =
             self.index.is_some() && self.index == self.track_ids.len().checked_sub(1);
 
-        if ended_by_itself && on_last_track {
-            self.finished = true;
-            Some(Update::Finished)
-        } else {
-            None
+        if !ended_by_itself {
+            return None;
         }
+
+        if on_last_track {
+            self.finished = true;
+            return Some(Update::Finished);
+        }
+
+        if self.restart_mpv_on_track_end {
+            if let Some(index) = self.index {
+                self.finished = true;
+                return Some(Update::RestartAt(index + 1));
+            }
+        }
+
+        None
     }
 }
 
@@ -130,7 +159,7 @@ mod tests {
 
     #[test]
     fn progress_follows_the_track_mpv_reports() {
-        let mut t = Tracker::new(ids(3), 0, 0.0);
+        let mut t = Tracker::new(ids(3), 0, 0.0, false);
         assert_eq!(t.handle(&pos(0)), progress("t0", 0.0, true));
         assert_eq!(t.handle(&time(12.5)), progress("t0", 12.5, false));
         assert_eq!(t.handle(&pos(1)), progress("t1", 0.0, true));
@@ -138,7 +167,7 @@ mod tests {
 
     #[test]
     fn resume_seeks_once_then_records_normally() {
-        let mut t = Tracker::new(ids(3), 1, 90.0);
+        let mut t = Tracker::new(ids(3), 1, 90.0, false);
         // The saved spot is what gets recorded while we wait for the file to load.
         assert_eq!(t.handle(&pos(1)), progress("t1", 90.0, true));
         assert_eq!(t.handle(&time(0.0)), Some(Update::Seek(90.0)));
@@ -147,14 +176,14 @@ mod tests {
 
     #[test]
     fn saved_position_is_dropped_if_playback_starts_elsewhere() {
-        let mut t = Tracker::new(ids(3), 1, 90.0);
+        let mut t = Tracker::new(ids(3), 1, 90.0, false);
         assert_eq!(t.handle(&pos(2)), progress("t2", 0.0, true)); // mpv skipped track 1
         assert_eq!(t.handle(&time(1.0)), progress("t2", 1.0, false)); // no seek
     }
 
     #[test]
     fn nulls_replies_and_unrelated_events_are_ignored() {
-        let mut t = Tracker::new(ids(2), 0, 0.0);
+        let mut t = Tracker::new(ids(2), 0, 0.0, false);
         let null_time = json!({"event": "property-change", "name": "time-pos", "data": null});
         assert_eq!(t.handle(&null_time), None);
         assert_eq!(t.handle(&pos(-1)), None);
@@ -164,12 +193,30 @@ mod tests {
 
     #[test]
     fn only_a_natural_end_of_the_last_track_finishes_the_playlist() {
-        let mut t = Tracker::new(ids(2), 0, 0.0);
+        let mut t = Tracker::new(ids(2), 0, 0.0, false);
         t.handle(&pos(0));
         assert_eq!(t.handle(&end("eof")), None); // first of two: not done
         t.handle(&pos(1));
         assert_eq!(t.handle(&end("quit")), None); // user closed mpv: keep the position
         assert_eq!(t.handle(&end("eof")), Some(Update::Finished));
         assert_eq!(t.handle(&time(5.0)), None); // nothing after the end counts
+    }
+
+    #[test]
+    fn restart_mode_advances_to_the_next_track_then_finishes() {
+        let mut t = Tracker::new(ids(3), 1, 0.0, true);
+        assert_eq!(t.handle(&pos(0)), progress("t1", 0.0, true));
+        assert_eq!(t.handle(&end("eof")), Some(Update::RestartAt(2)));
+        assert_eq!(t.handle(&end("eof")), None);
+
+        let mut last = Tracker::new(ids(3), 2, 0.0, true);
+        assert_eq!(last.handle(&end("eof")), Some(Update::Finished));
+        assert_eq!(last.handle(&time(10.0)), None);
+    }
+
+    #[test]
+    fn restart_mode_does_not_advance_after_manual_quit() {
+        let mut t = Tracker::new(ids(3), 1, 0.0, true);
+        assert_eq!(t.handle(&end("quit")), None);
     }
 }

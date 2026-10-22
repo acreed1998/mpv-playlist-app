@@ -15,7 +15,8 @@ const DEFAULT_PLAYBACK_SPEED: &str = "1.00";
 pub struct Settings {
     pub mpv_path: Option<String>, // None = look for "mpv" on the PATH
     pub video_extensions: Option<Vec<String>>, // None = the built-in list
-    pub playback_speed: Option<String> // None = 1.00
+    pub playback_speed: Option<String>, // None = 1.00
+    pub restart_mpv_on_track_end: bool,
 }
 
 impl Settings {
@@ -179,5 +180,20 @@ mod tests {
 
         let custom = Settings { video_extensions: Some(vec!["ts".into()]), ..Settings::default() };
         assert_eq!(custom.extensions(), vec!["ts"]);
+    }
+
+    #[test]
+    fn restart_setting_defaults_off_and_round_trips() {
+        let dir = temp_dir();
+        assert!(!load(&dir).restart_mpv_on_track_end);
+
+        let settings = Settings {
+            restart_mpv_on_track_end: true,
+            ..Settings::default()
+        };
+        save(&dir, &settings).unwrap();
+        assert_eq!(load(&dir), settings);
+
+        let _ = fs::remove_dir_all(&dir);
     }
 }

@@ -10,10 +10,12 @@ interface Props {
   customExtensions: boolean; // true if the user has saved their own list
   busy: boolean;
   playbackSpeed: string | null;
+  restartMpvOnTrackEnd: boolean;
   onSaveMpvPath: (path: string | null) => void;
   onBrowse: () => Promise<string | null>;
   onSaveExtensions: (text: string | null) => void;
   onSavePlaybackSpeed: (speed: string | null) => void;
+  onSaveRestartMpvOnTrackEnd: (enabled: boolean) => void;
 }
 
 export function SettingsPanel({
@@ -22,10 +24,12 @@ export function SettingsPanel({
   customExtensions,
   busy,
   playbackSpeed,
+  restartMpvOnTrackEnd,
   onSaveMpvPath,
   onBrowse,
   onSaveExtensions,
   onSavePlaybackSpeed,
+  onSaveRestartMpvOnTrackEnd,
 }: Props) {
   // What's typed in each box, which may differ from what's saved.
   const [mpvDraft, setMpvDraft] = useState(mpvPath ?? "");
@@ -101,6 +105,15 @@ export function SettingsPanel({
               value={speedDraft}
             />
           </Grid>
+          <label>
+            <input
+              type="checkbox"
+              checked={restartMpvOnTrackEnd}
+              disabled={busy}
+              onChange={(e) => onSaveRestartMpvOnTrackEnd(e.target.checked)}
+            />{" "}
+            Close and reopen MPV after each video
+          </label>
         </Box>
       </ExpandCollapse>
     </>

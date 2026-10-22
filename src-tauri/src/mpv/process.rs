@@ -1,5 +1,5 @@
 use std::path::Path;
-use std::process::{Child, Command, Stdio};
+use std::process::{Child, Stdio};
 use std::sync::atomic::Ordering;
 
 use tauri::Manager;
@@ -33,6 +33,51 @@ pub fn spawn_mpv(program: &str, queue_path: &Path, start_index: usize, playback_
         .stderr(Stdio::inherit())
         .spawn()
         .map_err(|e| format!("Failed to start {program}: {e}"))
+}
+
+pub fn spawn_mpv_track(program: &str, path: &str, playback_speed: &str) -> Result<Child, String> {
+    ipc::remove_stale_socket();
+
+    quiet_command(program)
+        .arg(format!("--input-ipc-server={}", ipc::IPC_PATH))
+        .arg(format!("--speed={}", playback_speed))
+        .arg(path)
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::inherit())
+        .spawn()
+        .map_err(|e| format!("Failed to start {program}: {e}"))
+}
+
+// Replace the current process only if the observer still belongs to this session.
+pub fn restart_mpv_for_track(
+    mpv: &MpvState,
+    generation: u64,
+    program: &str,
+    path: &str,
+    playback_speed: &str,
+) -> Result<bool, String> {
+    let mut slot = mpv
+        .child
+        .lock()
+        .map_err(|_| "mpv state lock was poisoned".to_string())?;
+    if mpv.generation.load(Ordering::SeqCst) != generation {
+        return Ok(false);
+    }
+
+    stop_existing(&mut slot);
+    if mpv.generation.load(Ordering::SeqCst) != generation {
+        return Ok(false);
+    }
+
+    let mut child = spawn_mpv_track(program, path, playback_speed)?;
+    if mpv.generation.load(Ordering::SeqCst) != generation {
+        let _ = child.kill();
+        let _ = child.wait();
+        return Ok(false);
+    }
+    *slot = Some(child);
+    Ok(true)
 }
 
 // Stop mpv for good (or before replacing it), saving the position first.

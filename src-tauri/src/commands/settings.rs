@@ -43,3 +43,11 @@ pub fn set_playback_speed(
     let cleaned = speed.as_deref().and_then(settings::normalize_path);
     state.set_playback_speed(cleaned)
 }
+
+#[tauri::command]
+pub fn set_restart_mpv_on_track_end(
+    enabled: bool,
+    state: State<'_, SettingsState>,
+) -> Result<Settings, String> {
+    state.set_restart_mpv_on_track_end(enabled)
+}

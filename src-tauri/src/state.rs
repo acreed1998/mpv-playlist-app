@@ -91,4 +91,8 @@ impl SettingsState {
     pub fn set_playback_speed(&self, speed: Option<String>) -> Result<Settings, String> {
         self.update(|s| s.playback_speed = speed)
     }
+
+    pub fn set_restart_mpv_on_track_end(&self, enabled: bool) -> Result<Settings, String> {
+        self.update(|s| s.restart_mpv_on_track_end = enabled)
+    }
 }

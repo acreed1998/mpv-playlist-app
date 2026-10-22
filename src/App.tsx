@@ -131,6 +131,12 @@ function App() {
     });
   };
 
+  const saveRestartMpvOnTrackEnd = (enabled: boolean) => {
+    run(async () => {
+      setSettings(await api.setRestartMpvOnTrackEnd(enabled));
+    });
+  };
+
   async function handleSort(key: SortKey, direction: Direction) {
     if (!playlist) return;
 
@@ -264,6 +270,7 @@ function App() {
         <SettingsPanel
           mpvPath={settings.mpvPath}
           playbackSpeed={settings.playbackSpeed}
+          restartMpvOnTrackEnd={settings.restartMpvOnTrackEnd}
           extensions={extensions}
           customExtensions={settings.videoExtensions !== null}
           busy={busy}
@@ -271,6 +278,7 @@ function App() {
           onBrowse={browseForMpv}
           onSaveExtensions={saveExtensions}
           onSavePlaybackSpeed={savePlaybackSpeed}
+          onSaveRestartMpvOnTrackEnd={saveRestartMpvOnTrackEnd}
         />
       )}
 
