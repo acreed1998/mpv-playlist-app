@@ -19,7 +19,7 @@ import { DependencyBanner } from "./components/DependencyBanner";
 import { PlaybackControls } from "./components/PlaybackControls";
 import { SortControls } from "./components/SortControls";
 import { TrackList } from "./components/TrackList";
-import { SettingsPanel } from "./components/SettingsPanel";
+import { SettingsPanel } from "./components/SettingsPannel";
 
 function App() {
   const [deps, setDeps] = useState<DependencyReport | null>(null);
