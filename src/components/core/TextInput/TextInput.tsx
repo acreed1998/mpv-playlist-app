@@ -3,10 +3,10 @@ import {
   FormControlProps,
   FormHelperText,
   FormHelperTextProps,
-  Input,
   InputLabel,
   InputLabelProps,
   InputProps,
+  OutlinedInput,
 } from "@mui/material";
 import { ChangeEvent, ReactNode } from "react";
 
@@ -56,12 +56,17 @@ export const TextInput = ({
           id={ids.label}
           htmlFor={ids.input}
           shrink={Boolean(value)}
+          variant="outlined"
+          sx={{
+            mb: "-0.75rem",
+            position: "unset",
+          }}
         >
           {label}
         </InputLabel>
       ) : null}
 
-      <Input
+      <OutlinedInput
         {...inputProps}
         className={classNames?.input}
         id={ids.input}

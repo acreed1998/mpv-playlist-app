@@ -71,6 +71,16 @@ export function SettingsPanel({
             setMpvDraft={setMpvDraft}
           />
 
+          {/* Video File Extensions Setting */}
+          <VideoFileExtensionsSetting
+            busy={busy}
+            customExtensions={customExtensions}
+            extChanged={extChanged}
+            extDraft={extDraft}
+            onSaveExtensions={onSaveExtensions}
+            setExtDraft={setExtDraft}
+          />
+
           {/* MPV Playback Speed Setting */}
           <Grid container sx={{ pb: "1.5rem" }}>
             <TextInput
@@ -91,16 +101,6 @@ export function SettingsPanel({
               value={speedDraft}
             />
           </Grid>
-
-          {/* Video File Extensions Setting */}
-          <VideoFileExtensionsSetting
-            busy={busy}
-            customExtensions={customExtensions}
-            extChanged={extChanged}
-            extDraft={extDraft}
-            onSaveExtensions={onSaveExtensions}
-            setExtDraft={setExtDraft}
-          />
         </Box>
       </ExpandCollapse>
     </>

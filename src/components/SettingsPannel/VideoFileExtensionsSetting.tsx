@@ -19,7 +19,7 @@ export const VideoFileExtensionsSetting = ({
   setExtDraft,
 }: VideoFileExtensionsSettingProps) => {
   return (
-    <Grid container>
+    <Grid container sx={{ pb: "1.5rem" }}>
       <Grid size={12}>
         <TextInput
           ids={{
